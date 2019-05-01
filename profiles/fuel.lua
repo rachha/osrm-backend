@@ -11,12 +11,6 @@ limit = require("lib/maxspeed").limit
 Utils = require("lib/utils")
 Measure = require("lib/measure")
 
--- By vinay
--- local Debug = require("lib/profile_debugger")
--- local pprint = require('lib/pprint')
-
--- Debug.load_profile('fuel')
-
 function setup()
   return {
     properties = {
@@ -427,7 +421,7 @@ function process_way(profile, way, result, relations)
     WayHandlers.speed,
     WayHandlers.surface,
     WayHandlers.maxspeed,
-    WayHandlers.penalties, -- commented by vinay
+    WayHandlers.penalties,
 
     -- compute class labels
     WayHandlers.classes,
@@ -456,13 +450,6 @@ function process_way(profile, way, result, relations)
   if profile.cardinal_directions then
       Relations.process_way_refs(way, relations, result)
   end
-
-  --print(result.forward_speed)
-  --print("s=>r")
-  --print(result.forward_rate)
-  --print("\n")
-
-
 end
 
 function process_turn(profile, turn)
@@ -492,7 +479,7 @@ function process_turn(profile, turn)
   if profile.properties.weight_name == 'distance' then
      turn.weight = 0
   else
-     turn.weight = 0
+     turn.weight = turn.duration*63.615/144 -- considering 25kmph while taking turn
   end
 
   if profile.properties.weight_name == 'routability' then
@@ -508,9 +495,9 @@ function process_segment (profile, segment)
   local edge_distance = segment.distance
   local edge_duration = segment.duration
  
-  local velocity = (edge_distance / edge_duration) * 3.6  -- calculating velocity along the edge in km/h
+  local velocity = (edge_distance / edge_duration) * 3.6  -- calculating velocity along the segment in km/h
 
-  local fuel_per_km = 54.7+(496/velocity) - 0.542*velocity + 0.00042*velocity*velocity
+  local fuel_per_km = 54.7+(496/velocity) - 0.542*velocity + 0.0042*velocity*velocity
 
   segment.weight = (fuel_per_km/1000) * edge_distance
 
