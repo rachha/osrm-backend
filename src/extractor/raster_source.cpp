@@ -45,7 +45,7 @@ RasterDatum RasterSource::GetRasterData(const int lon, const int lat) const
     const std::size_t xth = static_cast<std::size_t>(round((lon - xmin) / xstep));
     const std::size_t yth = static_cast<std::size_t>(round((ymax - lat) / ystep));
 
-    return {raster_data(xth, yth)};
+    return {static_cast<float>(raster_data(xth, yth))};
 }
 
 // Query raster source using bilinear interpolation
@@ -72,10 +72,10 @@ RasterDatum RasterSource::GetRasterInterpolate(const int lon, const int lat) con
     const float fromRight = 1 - fromLeft;
     const float fromBottom = 1 - fromTop;
 
-    return {static_cast<std::int32_t>(raster_data(left, top) * (fromRight * fromBottom) +
-                                      raster_data(right, top) * (fromLeft * fromBottom) +
-                                      raster_data(left, bottom) * (fromRight * fromTop) +
-                                      raster_data(right, bottom) * (fromLeft * fromTop))};
+    return {raster_data(left, top) * (fromRight * fromBottom) +
+            raster_data(right, top) * (fromLeft * fromBottom) +
+            raster_data(left, bottom) * (fromRight * fromTop) +
+            raster_data(right, bottom) * (fromLeft * fromTop)};
 }
 
 // Load raster source into memory

@@ -26,13 +26,13 @@ namespace extractor
 */
 struct RasterDatum
 {
-    static std::int32_t get_invalid() { return std::numeric_limits<std::int32_t>::max(); }
+    static float get_invalid() { return std::numeric_limits<float>::max(); }
 
-    std::int32_t datum = get_invalid();
+    float datum = get_invalid();
 
     RasterDatum() = default;
 
-    RasterDatum(std::int32_t _datum) : datum(_datum) {}
+    RasterDatum(float _datum) : datum(_datum) {}
 };
 
 class RasterGrid
