@@ -29,6 +29,16 @@ function setup()
       traffic_light_penalty          = 2,
     },
 
+    raster_source = raster:load(
+      "../../../SRTM/blore/srtm_52_10.asc",  -- file to load
+      75,    -- longitude min
+      80,    -- longitude max
+      30,    -- latitude min
+      35,    -- latitude max
+      6001,  -- number of rows
+      6001   -- number of columns
+    ),
+
     default_mode              = mode.driving,
     default_speed             = 10,
     oneway_handling           = true,
@@ -493,16 +503,80 @@ end
 
 function process_segment (profile, segment)
   local edge_distance = segment.distance
-  local edge_duration = segment.duration
- 
+  local edge_duration = segment.duration 
   local velocity = (edge_distance / edge_duration) * 3.6  -- calculating velocity along the segment in km/h
+  local gradient = 0
 
+  local sourceData = raster:interpolate(profile.raster_source, segment.source.lon, segment.source.lat)
+  local targetData = raster:interpolate(profile.raster_source, segment.target.lon, segment.target.lat)
+  local invalid = sourceData.invalid_data()
+  if sourceData.datum ~= invalid and targetData.datum ~= invalid then
+     local rise  = targetData.datum - sourceData.datum
+     local run
+     if rise < edge_distance then
+	run = math.sqrt(edge_distance^2 - rise^2) 
+     else
+	run = 10000000	--to make gradient nearly zero 
+     end
+     gradient = rise * 100 / run
+
+     --io.write(velocity ..  " " .. segment.source.lat .. "," .. segment.source.lon .. " " .. 
+     --segment.target.lat .. "," .. segment.target.lon .. " " .. gradient .. " ")
+     velocity = velocity * penalize_velocity(gradient)
+     --print(gradient)
+  end
+  
   local fuel_per_km = 54.7+(496/velocity) - 0.542*velocity + 0.0042*velocity*velocity
-
+  fuel_per_km = fuel_per_km * penalize_fc(velocity, gradient)
   segment.weight = (fuel_per_km/1000) * edge_distance
+  segment.duration = ( edge_distance / velocity ) * 3.6
 
 end
 
+function penalize_velocity(gradient)
+  gradient = math.abs(gradient)
+  local penality = 1
+  if gradient < 0.5 then
+     penality = 1
+  elseif gradient < 1 then
+     penality = 96/100
+  elseif gradient < 2 then
+     penality = 91/100
+  elseif gradient < 3 then
+     penality = 85/100
+  elseif gradient < 4 then
+     penality = 80/100
+  elseif gradient < 6 then
+     penality = 70/100
+  elseif gradient < 8 then
+     penality = 60/100
+  elseif gradient < 10 then
+     penality = 50/100
+  else		--if gradient >= 10 then
+     penality = 40/100
+  end
+  return penality
+end
+
+function penalize_fc(v, gradient)
+  local penality = 1
+  if gradient < -5 then
+     penality = 4.26*math.pow(10, -5)*v*v - 7.28*math.pow(10, -3)*v + 0.615
+  elseif gradient < -3 then
+     penality = 6.34*math.pow(10, -5)*v*v - 1.08*math.pow(10, -2)*v + 0.952
+  elseif gradient < -1 then
+     penality = 2.04*math.pow(10, -5)*v*v - 3.49*math.pow(10, -3)*v + 0.906
+  elseif gradient <= 1 then
+     penality = 1
+  elseif gradient <= 3 then
+     penality = 2.63*math.pow(10, -6)*v*v + 2.25*math.pow(10, -3)*v + 1.09
+  elseif gradient <= 5 then
+     penality = -3.11*math.pow(10, -6)*v*v + 4.72*math.pow(10, -3)*v + 1.23
+  else
+     penality = -4.74*math.pow(10, -5)*v*v + 1.17*math.pow(10, -2)*v + 1.4 
+  end
+  return penality
+end
 return {
   setup = setup,
   process_way = process_way,
